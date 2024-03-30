@@ -91,7 +91,18 @@ class SamplerCustomPrediction:
 
         return (out, out_denoised)
 
-def sample_pred(model, noise, predictor, sampler, sigmas, latent, noise_mask=None, callback=None, disable_pbar=False, seed=None):
+def sample_pred(
+    model,
+    noise,
+    predictor,
+    sampler,
+    sigmas,
+    latent,
+    noise_mask=None,
+    callback=None,
+    disable_pbar=False,
+    seed=None
+):
     if noise_mask is not None:
         noise_mask = comfy.sample.prepare_mask(noise_mask, noise.shape, model.load_device)
 
@@ -223,15 +234,47 @@ class NoisePredictor:
         return models
 
     @staticmethod
+    def merge_models(*args):
+        merged = set()
+
+        for arg in args:
+            if arg is None:
+                continue
+
+            if isinstance(arg, NoisePredictor):
+                merged |= arg.get_models()
+            elif isinstance(arg, set):
+                merged |= arg
+            else:
+                merged.add(arg)
+
+        return merged
+
+    @staticmethod
     def merge_conds(*args):
         merged = {}
 
         for arg in args:
+            if arg is None:
+                continue
+
+            if isinstance(arg, NoisePredictor):
+                arg = arg.get_conds()
+
             for name, cond in arg.items():
                 if name not in merged:
                     merged[name] = cond
                 elif merged[name] != cond:
                     raise RuntimeError(f"Conditioning \"{name}\" is not unique.")
+
+        return merged
+
+    def merge_preds(self, *args):
+        merged = {self}
+
+        for arg in args:
+            if arg is not None and arg not in merged:
+                merged |= arg.get_preds()
 
         return merged
 
@@ -332,16 +375,16 @@ class CombinePredictor(NoisePredictor):
             case "max(A, B)":
                 self.op = torch.maximum
             case _:
-                raise Exception("unsupported operation")
+                raise RuntimeError(f"unsupported operation: {self.op}")
 
     def get_conds(self):
-        return self.merge_conds(self.lhs.get_conds(), self.rhs.get_conds())
+        return self.merge_conds(self.lhs, self.rhs)
 
     def get_models(self):
-        return self.lhs.get_models() | self.rhs.get_models()
+        return self.merge_models(self.lhs, self.rhs)
 
     def get_preds(self):
-        return {self} | self.lhs.get_preds() | self.rhs.get_preds()
+        return self.merge_preds(self.lhs, self.rhs)
 
     def predict_noise(self, x, timestep, model, conds, model_options, seed):
         lhs = self.lhs.predict_noise(x, timestep, model, conds, model_options, seed)
@@ -364,13 +407,13 @@ class SwitchPredictor(NoisePredictor):
         self.sigmas = sigmas_B
 
     def get_conds(self):
-        return self.merge_conds(self.lhs.get_conds(), self.rhs.get_conds())
+        return self.merge_conds(self.lhs, self.rhs)
 
     def get_models(self):
-        return self.lhs.get_models() | self.rhs.get_models()
+        return self.merge_models(self.lhs, self.rhs)
 
     def get_preds(self):
-        return {self} | self.lhs.get_preds() | self.rhs.get_preds()
+        return self.merge_preds(self.lhs, self.rhs)
 
     def predict_noise(self, x, sigma, model, conds, model_options, seed):
         rhs_mask = torch.isin(sigma.cpu(), self.sigmas)
@@ -431,13 +474,13 @@ class ScaledGuidancePredictor(NoisePredictor):
         self.rescale = stddev_rescale
 
     def get_conds(self):
-        return self.merge_conds(self.lhs.get_conds(), self.rhs.get_conds())
+        return self.merge_conds(self.lhs, self.rhs)
 
     def get_models(self):
-        return self.lhs.get_models() | self.rhs.get_models()
+        return self.merge_models(self.lhs, self.rhs)
 
     def get_preds(self):
-        return {self} | self.lhs.get_preds() | self.rhs.get_preds()
+        return self.merge_preds(self.lhs, self.rhs)
 
     def predict_noise(self, x, sigma, model, conds, model_options, seed):
         g = self.lhs.predict_noise(x, sigma, model, conds, model_options, seed)
