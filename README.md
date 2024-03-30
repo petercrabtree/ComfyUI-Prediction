@@ -25,22 +25,35 @@ Follow these steps for fully custom prediction:
 ## Primitive Nodes
 All other predictions can be implemented in terms of these nodes. However, it may get a little messy.
 
-**Conditioned Prediction** - Evaluate your chosen model with a prompt (conditioning). You need to pick a unique conditioning name like "positive", "negative", or "empty". (The names are arbitrary and you can choose any name, but the names may eventually interact with ControlNet if/when it's implemented.)
+### Conditioned Prediction 
+Evaluates your chosen model with a prompt (conditioning). You need to pick a unique conditioning name like "positive", "negative", or "empty".
 
-**Combine Predictions** - Operates on two predictions. Supports add (+), subtract (-), multiply (*), divide (/), [vector projection](https://en.wikipedia.org/wiki/Vector_projection) (proj), [vector rejection](https://en.wikipedia.org/wiki/Vector_projection) (oproj), min, and max.<br>
+The names are arbitrary and you can choose any name, but the names may eventually interact with ControlNet if/when it's implemented.
+
+### Combine Predictions
+Operates on two predictions. Supports add (+), subtract (-), multiply (*), divide (/), [vector projection](https://en.wikipedia.org/wiki/Vector_projection) (proj), [vector rejection](https://en.wikipedia.org/wiki/Vector_projection) (oproj), min, and max.
+
 ``prediction_A <operation> prediction_B``
 
-**Scale Prediction** - Linearly scales a prediction.<br>
+### Scale Prediction
+Linearly scales a prediction.
+
 ``prediction * scale``
 
-**Switch Predictions** - Switches from one prediction to another one based on the timestep sigma. Use <ins>sampling > custom_sampling > sigmas > Split Sigmas</ins> to create a sub-range of timestep sigmas.<br>
+### Switch Predictions 
+Switches from one prediction to another one based on the timestep sigma. Use <ins>sampling > custom_sampling > sigmas > Split Sigmas</ins> to create a sub-range of timestep sigmas.
+
 ``prediction_B when current_sigma in sigmas_B otherwise prediction_A``
 
-**Scaled Guidance Prediction** - Combines a baseline prediction with a scaled guidance prediction using optional standard deviation rescaling, similar to CFG.<br>
+### Scaled Guidance Prediction
+Combines a baseline prediction with a scaled guidance prediction using optional standard deviation rescaling, similar to CFG.
+
 Without ``stddev_rescale``: ``baseline + guidance * scale``<br>
 With ``stddev_rescale``: [See §3.4 of this paper.](https://arxiv.org/pdf/2305.08891.pdf) As usual, start out around 0.7 and tune from there.
 
-**Characteristic Guidance Prediction** - Combines an unconditioned (or negative) prediction with a desired, conditioned (or positive) prediction using a [characteristic correction](https://arxiv.org/pdf/2312.07586.pdf).<br>
+### Characteristic Guidance Prediction
+Combines an unconditioned (or negative) prediction with a desired, conditioned (or positive) prediction using a [characteristic correction](https://arxiv.org/pdf/2312.07586.pdf).
+
 ``cond``: Desired conditioned or positive prediction. This prediction should not be independent of the unconditioned prediction.<br>
 ``uncond``: Unconditioned or negative prediction.<br>
 ``fallback``: Optional prediction to use in the case of non-convergence. Defaults to vanilla CFG if not connected.<br>
@@ -57,17 +70,25 @@ It's recommended that you use the **Switch Predictions** node to skip CHG on the
 
 ## Prebuilt Nodes
 
-**Interpolate Predictions** - Linearly interpolates two predictions.<br>
+### Interpolate Predictions
+Linearly interpolates two predictions.
+
 ``prediction_A * (1.0 - scale_B) + prediction_B * scale_B``
 
-**CFG Prediction** - Vanilla Classifier Free Guidance (CFG) with a positive prompt and a negative/empty prompt. Does not support CFG rescale.<br>
+### CFG Prediction
+Vanilla Classifier Free Guidance (CFG) with a positive prompt and a negative/empty prompt. Does not support CFG rescale.
+
 ``(positive - negative) * cfg_scale + negative``
 
-**Perp-Neg Prediction** - Implements https://arxiv.org/abs/2304.04968. (The built-in ComfyUI Perp-Neg node is [incorrectly implemented](https://github.com/comfyanonymous/ComfyUI/issues/2858).)<br>
+### Perp-Neg Prediction
+Implements https://arxiv.org/abs/2304.04968.
+
 ``pos_ind = positive - empty; neg_ind = negative - empty``<br>
 ``(pos_ind - (neg_ind oproj pos_ind) * neg_scale) * cfg_scale + empty``
 
-**Avoid and Erase Prediction** - Re-aligns a desirable (positive) prediction called *guidance* away from an undesirable (negative) prediction called *avoid_and_erase*, and erases some of the negative prediction as well.<br>
+### Avoid and Erase Prediction
+Re-aligns a desirable (positive) prediction called *guidance* away from an undesirable (negative) prediction called *avoid_and_erase*, and erases some of the negative prediction as well.
+
 ``guidance - (guidance proj avoid_and_erase) * avoid_scale - avoid_and_erase * erase_scale``
 
 # Limitations
