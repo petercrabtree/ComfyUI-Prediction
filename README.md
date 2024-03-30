@@ -33,25 +33,26 @@ All other predictions can be implemented in terms of these nodes. However, it ma
 **Scale Prediction** - Linearly scales a prediction.<br>
 ``prediction * scale``
 
+**Switch Predictions** - Switches from one prediction to another one based on the timestep sigma. Use <ins>sampling > custom_sampling > sigmas > Split Sigmas</ins> to create a sub-range of timestep sigmas.<br>
+``prediction_B when current_sigma in sigmas_B otherwise prediction_A``
+
 **Scaled Guidance Prediction** - Combines a baseline prediction with a scaled guidance prediction using optional standard deviation rescaling, similar to CFG.<br>
 Without stddev_rescale: ``baseline + guidance * scale``<br>
 With stddev_rescale: [See §3.4 of this paper.](https://arxiv.org/pdf/2305.08891.pdf) As usual, start out around 0.7 and tune from there.
 
-**Switch Predictions** - Switches from one prediction to another one based on the timestep sigma. Use <ins>sampling > custom_sampling > sigmas > Split Sigmas</ins> to create a sub-range of timestep sigmas.<br>
-``prediction_B when current_sigma in sigmas_B otherwise prediction_A``
-
-## Convinence Nodes
-
-**Avoid and Erase Prediction** - Re-aligns a desirable (positive) prediction called *guidance* away from an undesirable (negative) prediction called *avoid_and_erase*, and erases some of the negative prediction as well.<br>
-``guidance - (guidance proj avoid_and_erase) * avoid_scale - avoid_and_erase * erase_scale``
-
 ## Prebuilt Nodes
+**Interpolate Predictions** - Linearly interpolates two predictions.<br>
+``prediction_A * (1.0 - scale_B) + prediction_B * scale_B``
+
 **CFG Prediction** - Vanilla Classifer Free Guidance (CFG) with a postive prompt and a negative/empty prompt. Does not support CFG rescale.<br>
 ``(positive - negative) * cfg_scale + negative``
 
 **Perp-Neg Prediction** - Implements https://arxiv.org/abs/2304.04968. (The built-in ComfyUI Perp-Neg node is [incorrectly implemented](https://github.com/comfyanonymous/ComfyUI/issues/2858).)<br>
 ``pos_ind = positive - empty; neg_ind = negative - empty``<br>
 ``(pos_ind - (neg_ind oproj pos_ind) * neg_scale) * cfg_scale + empty``
+
+**Avoid and Erase Prediction** - Re-aligns a desirable (positive) prediction called *guidance* away from an undesirable (negative) prediction called *avoid_and_erase*, and erases some of the negative prediction as well.<br>
+``guidance - (guidance proj avoid_and_erase) * avoid_scale - avoid_and_erase * erase_scale``
 
 # Limitations
 ControlNet is not supported at this time.
