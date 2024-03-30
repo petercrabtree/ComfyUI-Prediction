@@ -3,6 +3,7 @@ import sys
 import comfy
 import torch
 import latent_preview
+from tqdm import tqdm
 
 class CustomNoisePredictor(torch.nn.Module):
     def __init__(self, model, pred, preds, conds):
@@ -544,6 +545,336 @@ class ScaledGuidancePredictor(NoisePredictor):
 
         return x_norm - x0_rescaled
 
+class CharacteristicGuidancePredictor(CachingNoisePredictor):
+    """Implementes Characteristic Guidance with Anderson Acceleration
+
+    https://arxiv.org/pdf/2312.07586.pdf"""
+
+    INPUTS = {
+        "required": {
+            "cond": ("PREDICTION",),
+            "uncond": ("PREDICTION",),
+            "guidance_scale": ("FLOAT", { "default": 6.0, "step": 0.1, "min": 1.0, "max": 100.0 }),
+            "history": ("INT", { "default": 2, "min": 1 }),
+            "log_step_size": ("FLOAT", { "default": -3, "step": 0.1, "min": -6, "max": 0 }),
+            "log_tolerance": ("FLOAT", { "default": -4.0, "step": 0.1, "min": -6.0, "max": -2.0 }),
+            "keep_tolerance": ("FLOAT", { "default": 1.0, "step": 1.0, "min": 1.0, "max": 1000.0 }),
+            "reuse_scale": ("FLOAT", { "default": 0.0, "step": 0.0001, "min": 0.0, "max": 1.0 }),
+            "max_steps": ("INT", { "default": 20, "min": 5, "max": 1000 }),
+        },
+        "optional": {
+            "fallback": ("PREDICTION",),
+        }
+    }
+
+    def __init__(
+        self,
+        cond,
+        uncond,
+        guidance_scale,
+        history,
+        log_step_size,
+        log_tolerance,
+        keep_tolerance,
+        max_steps,
+        reuse_scale,
+        fallback = None
+    ):
+        super().__init__()
+
+        self.cond = cond
+        self.uncond = uncond
+        self.fallback = fallback
+        self.scale = guidance_scale
+        self.history = history
+        self.step_size = 10 ** log_step_size
+        self.tolerance = 10 ** log_tolerance
+        self.keep_tolerance = keep_tolerance
+        self.max_steps = max_steps
+        self.reuse = reuse_scale
+
+        self.cond_deps = set()
+        self.uncond_deps = set()
+        self.restore_preds = []
+        self.prev_dx = None
+        self.sample = 0
+        self.pbar = None
+
+    def get_conds(self):
+        return self.merge_conds(self.cond, self.uncond, self.fallback)
+
+    def get_models(self):
+        return self.merge_models(self.cond, self.uncond, self.fallback)
+
+    def get_preds(self):
+        return self.merge_preds(self.cond, self.uncond, self.fallback)
+
+    def begin_sampling(self):
+        super().begin_sampling()
+
+        self.cond_deps = self.cond.get_preds()
+        self.uncond_deps = self.uncond.get_preds()
+        self.restore_preds.clear()
+        self.prev_dx = None
+        self.sample = 0
+
+        if comfy.utils.PROGRESS_BAR_ENABLED:
+            self.pbar = tqdm(bar_format="[{rate_fmt}] {desc} ")
+            self.pbar.set_description_str("CHG")
+
+    def end_sampling(self):
+        super().end_sampling()
+
+        self.cond_deps.clear()
+        self.uncond_deps.clear()
+        self.restore_preds.clear()
+        self.prev_dx = None
+        self.sample = 0
+
+        if self.pbar is not None:
+            self.pbar.close()
+            self.pbar = None
+
+    def predict_noise_cond(self, *args):
+        return self.predict_noise_sample(self.cond, self.cond_deps, *args)
+
+    def predict_noise_uncond(self, *args):
+        return self.predict_noise_sample(self.uncond, self.uncond_deps, *args)
+
+    def predict_noise_fallback(self, *args):
+        return self.predict_noise_sample(self.fallback, self.fallback.get_preds(), *args)
+
+    @staticmethod
+    def predict_noise_sample(pred, deps, *args):
+        for dep in deps:
+            dep.begin_sample()
+
+        try:
+            return pred.predict_noise(*args)
+        finally:
+            for dep in deps:
+                dep.end_sample()
+
+    def status(self, msg, start=False, end=False):
+        if self.pbar is not None:
+            if start:
+                self.pbar.unpause()
+
+            self.pbar.set_description_str(f"CHG sample {self.sample:>2}: {msg}")
+
+            if end:
+                print()
+                self.pbar.set_description_str("CHG")
+
+    def progress(self):
+        if self.pbar is not None:
+            self.pbar.update()
+
+    def restore(self):
+        while len(self.restore_preds) > 0:
+            pred, cached = self.restore_preds.pop()
+            pred.cached_prediction = cached
+            del cached
+
+    def predict_noise_uncached(self, x, sigma, model, conds, model_options, seed):
+        self.sample += 1
+        self.status(f"starting ({len(x)}/{len(x)})", start=True)
+
+        xb, xc, xh, xw = x.shape
+        cvg = []
+        uncvg = list(range(xb))
+
+        dx_b = []
+        g_b = []
+
+        # initial prediction, for regularization, step 1, and fallback
+        # p_r = (model(x) - model(x|c)) * sigma
+        p_c = self.cond.predict_noise(x, sigma, model, conds, model_options, seed)
+        p_u = self.uncond.predict_noise(x, sigma, model, conds, model_options, seed)
+        p_r = (p_u - p_c) * sigma[:, None, None, None]
+
+        if self.fallback is not None:
+            del p_c, p_u
+
+        # remember predictions for the original latents so we can restore them later
+        # end the current sample step since we're about to sample with a different x
+        for pred in (self.cond_deps | self.uncond_deps):
+            if isinstance(pred, CachingNoisePredictor):
+                self.restore_preds.append((pred, pred.cached_prediction))
+
+            pred.end_sample()
+
+        # when dx is 0, we can re-use the predictions made for regularization and save a step
+        #
+        # dx = 0
+        # r = dx - p_r = -p_r
+        # v = (model(x + (w+1)*dx) - model(x + w*dx|c)) * sigma = (model(x) - model(x|c)) * sigma = p_r
+        #
+        # P_r o v = proj(v, r) = proj(p_r, -p_r) = p_r
+        # g = dx - P_r o v = -p_r
+        #
+        # dx' = dx - gamma * g = p_r * gamma
+
+        if self.prev_dx is None:
+            start_at = 1
+            dx = p_r * self.step_size
+
+            if self.reuse != 0.0:
+                self.prev_dx = dx
+
+            if self.history > 1:
+                dx_b.append(torch.zeros_like(x))
+                g_b.append(-p_r)
+        else:
+            start_at = 0
+            dx = self.prev_dx
+            dx *= self.reuse
+
+        self.progress()
+
+        for s in range(start_at, self.max_steps):
+            comfy.model_management.throw_exception_if_processing_interrupted()
+            self.status(f"step {s+1}/{self.max_steps} ({len(cvg)}/{len(x)})")
+
+            # we only want to step the unconverged samples
+            ub = len(uncvg)
+            dxu = dx[uncvg]
+
+            sigu = sigma[uncvg]
+            cxu = x[uncvg] + dxu * (self.scale + 1)
+
+            # p = (model(x + dx * (scale + 1)) - model(x + dx * scale|c)) * sigma
+            p = (
+                self.predict_noise_uncond(cxu, sigu, model, conds, model_options, seed) -
+                self.predict_noise_cond(cxu - dxu, sigu, model, conds, model_options, seed)
+            ) * sigu.view(ub, 1, 1, 1)
+            del cxu, sigu
+
+            # g = dx - P o (model(x + dx * (scale + 1)) - model(x + dx * scale|c)) * sigma
+            g = dxu - proj(p, dxu - p_r[uncvg])
+            del p
+
+            # remember norm before AA to test for convergence
+            g_norm = torch.linalg.vector_norm(g, dim=(1, 2, 3)).cpu()
+
+            if self.history > 1:
+                dx_b.append(dxu.clone())
+                g_b.append(g.clone())
+
+            if len(dx_b) >= 2:
+                dx_b[-2] = dxu - dx_b[-2]
+                g_b[-2] = g - g_b[-2]
+
+                def as_mat(buf):
+                    # (M[], B, C, H, W) -> (B, CHW, M[:-1])
+                    return torch.stack([buf[m].view(ub, xc*xh*xw) for m in range(len(buf) - 1)], dim=2)
+
+                # w = argmin_w ||A_g w - b_g||_l2
+                a_g = as_mat(g_b)
+                w = torch.linalg.lstsq(a_g, g.view(ub, xc*xh*xw, 1)).solution
+
+                # g_AA = b_g - A_g w
+                g -= (a_g @ w).view(ub, xc, xh, xw)
+                del a_g
+
+                # dx_AA = x_g - A_x w
+                dx[uncvg] -= (as_mat(dx_b) @ w).view(ub, xc, xh, xw)
+                del w
+
+                if len(dx_b) >= self.history:
+                    del dx_b[0], g_b[0]
+
+            # dx = dx_AA - gamma g_AA
+            dx[uncvg] -= g * self.step_size
+            del g
+
+            # until ||g||_l2 <= tolerance * dim(g)
+            uidx = []
+
+            tolerance = self.tolerance * xc * xh * xw
+            if s == self.max_steps - 1:
+                tolerance *= self.keep_tolerance
+
+            for i in reversed(range(len(uncvg))):
+                if g_norm[i] <= tolerance:
+                    cvg.append(uncvg.pop(i))
+                else:
+                    uidx.append(i)
+
+            del g_norm
+
+            if len(uncvg) < ub:
+                cvg.sort()
+
+            if len(uncvg) == 0:
+                self.progress()
+                break
+
+            if len(uncvg) < ub:
+                uidx.reverse()
+
+                for m in range(len(dx_b)):
+                    dx_b[m] = dx_b[m][uidx]
+                    g_b[m] = g_b[m][uidx]
+
+            self.progress()
+
+        dx_b.clear()
+        g_b.clear()
+        del p_r
+
+        result = torch.empty_like(x)
+
+        if len(cvg) != 0:
+            self.status(f"sampling ({len(cvg)}/{len(x)})")
+
+            # predict only the converged samples
+            dxc = dx[cvg]
+            sigc = sigma[cvg]
+            cxc = x[cvg] + dxc * self.scale
+
+            # chg = model(x + dx * scale|c) * (scale + 1) - model(x + dx * (scale + 1)) * scale
+            result[cvg] = (
+                self.predict_noise_cond(cxc, sigc, model, conds, model_options, seed) * (self.scale + 1.0) -
+                self.predict_noise_uncond(cxc + dxc, sigc, model, conds, model_options, seed) * self.scale
+            )
+            del dxc, sigc, cxc
+
+            self.progress()
+
+        if len(uncvg) != 0:
+            if self.pbar is None:
+                print(f"CHG sample {self.sample}: {len(uncvg)}/{len(x)} samples did not converge")
+
+            if self.fallback is not None:
+                self.status(f"fallback ({len(uncvg)}/{len(x)})")
+
+                # in the very special case that nothing converged, we can restore now to hopefully speed-up the fallback
+                if len(cvg) == 0:
+                    self.restore()
+                    result = self.fallback.predict_noise(x, sigma, model, conds, model_options, seed)
+                else:
+                    result[uncvg] = self.predict_noise_fallback(x[uncvg], sigma[uncvg], model, conds, model_options, seed)
+
+                self.progress()
+            else:
+                # use vanilla CFG for unconverged samples if no fallback was specified
+                result[uncvg] = p_c[uncvg] * (self.scale + 1.0) - p_u[uncvg] * self.scale
+
+            # make sure the unconverged corrections are not reused
+            if self.reuse != 0.0:
+                for i in uncvg:
+                    dx[i].zero_()
+
+        if self.fallback is None:
+            del p_c, p_u
+
+        if self.pbar is not None:
+            self.status(f"{s+1} steps, {len(uncvg)} unconverged", end=True)
+
+        self.restore()
+        return result
+
 class AvoidErasePredictor(NoisePredictor):
     """Implements A - ((A proj B) * avoid_scale) - (B * erase_scale)"""
 
@@ -773,6 +1104,7 @@ make_node(CombinePredictor, "Combine Predictions", class_name="CombinePrediction
 make_node(InterpolatePredictor, "Interpolate Predictions", class_name="InterpolatePredictions")
 make_node(SwitchPredictor, "Switch Predictions", class_name="SwitchPredictions")
 make_node(ScaledGuidancePredictor, "Scaled Guidance Prediction")
+make_node(CharacteristicGuidancePredictor, "Characteristic Guidance Prediction")
 make_node(AvoidErasePredictor, "Avoid and Erase Prediction")
 make_node(ScalePredictor, "Scale Prediction")
 make_node(CFGPredictor, "CFG Prediction")
