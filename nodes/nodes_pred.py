@@ -391,6 +391,44 @@ class CombinePredictor(NoisePredictor):
         rhs = self.rhs.predict_noise(x, timestep, model, conds, model_options, seed)
         return self.op(lhs, rhs)
 
+class InterpolatePredictor(NoisePredictor):
+    INPUTS = {
+        "required": {
+            "prediction_A": ("PREDICTION",),
+            "prediction_B": ("PREDICTION",),
+            "scale_B": ("FLOAT", {"default": 0.5, "step": 0.01, "min": 0.0, "max": 1.0})
+        }
+    }
+
+    def __init__(self, prediction_A, prediction_B, scale_B):
+        self.lhs = prediction_A
+        self.rhs = prediction_B
+        self.lerp = scale_B
+
+    def get_conds(self):
+        return self.merge_conds(self.lhs, self.rhs)
+
+    def get_models(self):
+        return self.merge_models(self.lhs, self.rhs)
+
+    def get_preds(self):
+        return self.merge_preds(self.lhs, self.rhs)
+
+    def predict_noise(self, x, timestep, model, conds, model_options, seed):
+        match self.lerp:
+            case 0.0:
+                return self.lhs.predict_noise(x, timestep, model, conds, model_options, seed)
+
+            case 1.0:
+                return self.rhs.predict_noise(x, timestep, model, conds, model_options, seed)
+
+            case _:
+                return torch.lerp(
+                    self.lhs.predict_noise(x, timestep, model, conds, model_options, seed),
+                    self.rhs.predict_noise(x, timestep, model, conds, model_options, seed),
+                    self.lerp
+                )
+
 class SwitchPredictor(NoisePredictor):
     """Switches predictions for specified sigmas"""
     INPUTS = {
@@ -732,6 +770,7 @@ def make_node(predictor, display_name, class_name=None, category="sampling/predi
 
 make_node(ConditionedPredictor, "Conditioned Prediction")
 make_node(CombinePredictor, "Combine Predictions", class_name="CombinePredictions")
+make_node(InterpolatePredictor, "Interpolate Predictions", class_name="InterpolatePredictions")
 make_node(SwitchPredictor, "Switch Predictions", class_name="SwitchPredictions")
 make_node(ScaledGuidancePredictor, "Scaled Guidance Prediction")
 make_node(AvoidErasePredictor, "Avoid and Erase Prediction")
