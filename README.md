@@ -25,7 +25,7 @@ Follow these steps for fully custom prediction:
 ## Primitive Nodes
 All other predictions can be implemented in terms of these nodes. However, it may get a little messy.
 
-**Conditioned Prediction** - Evaluate your chosen model with a prompt (conditioning). You need to pick a unique conditioning name like "positive", "negative", or "empty". (The names are arbitrary and you can choose any name, but the names may evenutally interact with ControlNet if/when it's implemented.)
+**Conditioned Prediction** - Evaluate your chosen model with a prompt (conditioning). You need to pick a unique conditioning name like "positive", "negative", or "empty". (The names are arbitrary and you can choose any name, but the names may eventually interact with ControlNet if/when it's implemented.)
 
 **Combine Predictions** - Operates on two predictions. Supports add (+), subtract (-), multiply (*), divide (/), [vector projection](https://en.wikipedia.org/wiki/Vector_projection) (proj), [vector rejection](https://en.wikipedia.org/wiki/Vector_projection) (oproj), min, and max.<br>
 ``prediction_A <operation> prediction_B``
@@ -37,14 +37,15 @@ All other predictions can be implemented in terms of these nodes. However, it ma
 ``prediction_B when current_sigma in sigmas_B otherwise prediction_A``
 
 **Scaled Guidance Prediction** - Combines a baseline prediction with a scaled guidance prediction using optional standard deviation rescaling, similar to CFG.<br>
-Without stddev_rescale: ``baseline + guidance * scale``<br>
-With stddev_rescale: [See §3.4 of this paper.](https://arxiv.org/pdf/2305.08891.pdf) As usual, start out around 0.7 and tune from there.
+Without ``stddev_rescale``: ``baseline + guidance * scale``<br>
+With ``stddev_rescale``: [See §3.4 of this paper.](https://arxiv.org/pdf/2305.08891.pdf) As usual, start out around 0.7 and tune from there.
 
 ## Prebuilt Nodes
+
 **Interpolate Predictions** - Linearly interpolates two predictions.<br>
 ``prediction_A * (1.0 - scale_B) + prediction_B * scale_B``
 
-**CFG Prediction** - Vanilla Classifer Free Guidance (CFG) with a postive prompt and a negative/empty prompt. Does not support CFG rescale.<br>
+**CFG Prediction** - Vanilla Classifier Free Guidance (CFG) with a positive prompt and a negative/empty prompt. Does not support CFG rescale.<br>
 ``(positive - negative) * cfg_scale + negative``
 
 **Perp-Neg Prediction** - Implements https://arxiv.org/abs/2304.04968. (The built-in ComfyUI Perp-Neg node is [incorrectly implemented](https://github.com/comfyanonymous/ComfyUI/issues/2858).)<br>
