@@ -40,6 +40,21 @@ All other predictions can be implemented in terms of these nodes. However, it ma
 Without ``stddev_rescale``: ``baseline + guidance * scale``<br>
 With ``stddev_rescale``: [See §3.4 of this paper.](https://arxiv.org/pdf/2305.08891.pdf) As usual, start out around 0.7 and tune from there.
 
+**Characteristic Guidance Prediction** - Combines an unconditioned (or negative) prediction with a desired, conditioned (or positive) prediction using a [characteristic correction](https://arxiv.org/pdf/2312.07586.pdf).<br>
+``cond``: Desired conditioned or positive prediction. This prediction should not be independent of the unconditioned prediction.<br>
+``uncond``: Unconditioned or negative prediction.<br>
+``fallback``: Optional prediction to use in the case of non-convergence. Defaults to vanilla CFG if not connected.<br>
+``guidance_scale``: Scale of the independent conditioned prediction, like vanilla CFG.<br>
+``history``: Number of prior states to retain for Anderson acceleration. Generally improves convergence speed but may introduce instabilities. Setting to 1 disables Anderson acceleration, which will require a larger max_steps and smaller log_step_size to converge.<br>
+``log_step_size``: log<sub>10</sub> learning rate. Higher values improve convergence speed but will introduce instabilities.<br>
+``log_tolerance``: log<sub>10</sub> convergence tolerance. Higher values improve convergence speed but will introduce artifacts.<br>
+``keep_tolerance``: A multiplier greater than 1 relaxes the tolerance requirement on the final step, returning a mostly-converged result instead of using the fallback.<br>
+``reuse_scale``: A multiplier greater than 0 retains a portion of the prior correction term between samples. May improve convergence speed and consistency, but may also introduce instabilities. Use with caution.<br>
+``max_steps``: Maximum number of optimizer steps before giving up and using the fallback prediction.
+
+This node is extremely expensive to evaluate. It requires four full model evaluations plus two full evaluations for each optimizer step required.
+It's recommended that you use the **Switch Predictions** node to skip CHG on the first timestep as convergence is unlikely and to disable it towards the end of sampling as it has marginal effect.
+
 ## Prebuilt Nodes
 
 **Interpolate Predictions** - Linearly interpolates two predictions.<br>
