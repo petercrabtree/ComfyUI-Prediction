@@ -5,6 +5,34 @@ import torch
 import latent_preview
 from tqdm import tqdm
 
+try:
+    from comfy.samplers import calc_cond_batch
+except ImportError:
+    from comfy.samplers import calc_cond_uncond_batch
+
+    def calc_cond_batch(model, conds, x_in, timestep, model_options):
+        outputs = []
+
+        index = 0
+        while index < len(conds) - 1:
+            outputs.extend(calc_cond_uncond_batch(model, conds[index], conds[index + 1], x_in, timestep, model_options))
+            index += 2
+
+        if index < len(conds):
+            outputs.append(calc_cond_uncond_batch(model, conds[index], None, x_in, timestep, model_options)[0])
+
+        return outputs
+
+try:
+    from comfy.sampler_helpers import convert_cond
+except ImportError:
+    from comfy.sample import convert_cond
+
+try:
+    from comfy.sampler_helpers import get_models_from_cond
+except ImportError:
+    from comfy.sample import get_models_from_cond
+
 class CustomNoisePredictor(torch.nn.Module):
     def __init__(self, model, pred, preds, conds):
         super().__init__()
@@ -14,7 +42,7 @@ class CustomNoisePredictor(torch.nn.Module):
         self.preds = preds
         self.conds = conds
 
-    def apply_model(self, x, timestep, cond, uncond, cond_scale, model_options=None, seed=None):
+    def apply_model(self, x, timestep, cond=None, uncond=None, cond_scale=None, model_options=None, seed=None):
         if model_options is None:
             model_options = {}
 
@@ -164,10 +192,7 @@ def sample_pred(
     # TODO: support controlnet how?
 
     predictor_model = CustomNoisePredictor(model.model, predictor, preds, conds)
-    extra_args = {
-        "cond": None, "uncond": None, "cond_scale": None,
-        "model_options": model.model_options, "seed": seed
-    }
+    extra_args = { "model_options": model.model_options, "seed": seed }
 
     for pred in preds:
         pred.begin_sampling()
@@ -226,10 +251,10 @@ class NoisePredictor:
         models = set()
 
         for cond in self.get_conds():
-            for cnet in comfy.sample.get_models_from_cond(cond, "control"):
+            for cnet in get_models_from_cond(cond, "control"):
                 models |= cnet.get_models()
 
-            for gligen in comfy.sample.get_models_from_cond(cond, "gligen"):
+            for gligen in get_models_from_cond(cond, "gligen"):
                 models |= [x[1] for x in gligen]
 
         return models
@@ -312,7 +337,7 @@ class ConditionedPredictor(CachingNoisePredictor):
     def __init__(self, conditioning, name):
         super().__init__()
 
-        self.cond = comfy.sample.convert_cond(conditioning)
+        self.cond = convert_cond(conditioning)
         self.cond_name = name
 
     def get_conds(self):
@@ -325,16 +350,7 @@ class ConditionedPredictor(CachingNoisePredictor):
         return 1
 
     def predict_noise_uncached(self, x, timestep, model, conds, model_options, seed):
-        pred, _ = comfy.samplers.calc_cond_uncond_batch(
-            model,
-            conds[self.cond_name],
-            None,
-            x,
-            timestep,
-            model_options
-        )
-
-        return pred
+        return calc_cond_batch(model, [conds[self.cond_name]], x, timestep, model_options)[0]
 
 class CombinePredictor(NoisePredictor):
     INPUTS = {
@@ -980,8 +996,8 @@ class CFGPredictor(CachingNoisePredictor):
     def __init__(self, positive, negative, cfg_scale):
         super().__init__()
 
-        self.positive = comfy.sample.convert_cond(positive)
-        self.negative = comfy.sample.convert_cond(negative)
+        self.positive = convert_cond(positive)
+        self.negative = convert_cond(negative)
         self.cfg_scale = cfg_scale
 
     def get_conds(self):
@@ -997,10 +1013,9 @@ class CFGPredictor(CachingNoisePredictor):
         return 2
 
     def predict_noise_uncached(self, x, timestep, model, conds, model_options, seed):
-        cond, uncond = comfy.samplers.calc_cond_uncond_batch(
+        cond, uncond = calc_cond_batch(
             model,
-            conds["positive"],
-            conds["negative"],
+            [conds["positive"], conds["negative"]],
             x,
             timestep,
             model_options
@@ -1032,9 +1047,9 @@ class PerpNegPredictor(CachingNoisePredictor):
     def __init__(self, positive, negative, empty, cfg_scale, neg_scale):
         super().__init__()
 
-        self.positive = comfy.sample.convert_cond(positive)
-        self.negative = comfy.sample.convert_cond(negative)
-        self.empty = comfy.sample.convert_cond(empty)
+        self.positive = convert_cond(positive)
+        self.negative = convert_cond(negative)
+        self.empty = convert_cond(empty)
         self.cfg_scale = cfg_scale
         self.neg_scale = neg_scale
 
@@ -1052,19 +1067,9 @@ class PerpNegPredictor(CachingNoisePredictor):
         return 3
 
     def predict_noise_uncached(self, x, timestep, model, conds, model_options, seed):
-        cond, uncond = comfy.samplers.calc_cond_uncond_batch(
+        cond, uncond, empty = comfy.samplers.calc_cond_batch(
             model,
-            conds["positive"],
-            conds["negative"],
-            x,
-            timestep,
-            model_options
-        )
-
-        empty, _ = comfy.samplers.calc_cond_uncond_batch(
-            model,
-            conds["empty"],
-            None,
+            [conds["positive"], conds["negative"], conds["empty"]],
             x,
             timestep,
             model_options
