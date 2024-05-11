@@ -63,7 +63,7 @@ Combines an unconditioned (or negative) prediction with a desired, conditioned (
 ``log_tolerance``: log<sub>10</sub> convergence tolerance. Higher values improve convergence speed but will introduce artifacts.<br>
 ``keep_tolerance``: A multiplier greater than 1 relaxes the tolerance requirement on the final step, returning a mostly-converged result instead of using the fallback.<br>
 ``reuse_scale``: A multiplier greater than 0 retains a portion of the prior correction term between samples. May improve convergence speed and consistency, but may also introduce instabilities. Use with caution.<br>
-``max_steps``: Maximum number of optimizer steps before giving up and using the fallback prediction.
+``max_steps``: Maximum number of optimizer steps before giving up and using the fallback prediction.<br>
 ``precondition_gradients``: Precondition gradients during Anderson acceleration. This is strongly recommended, but may decrease result quality in specific cases where the gradients are reliably well-conditioned.
 
 This node is extremely expensive to evaluate. It requires four full model evaluations plus two full evaluations for each optimizer step required.
