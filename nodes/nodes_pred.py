@@ -33,6 +33,11 @@ try:
 except ImportError:
     from comfy.sample import get_models_from_cond
 
+try:
+    from comfy.sampler_helpers import prepare_mask
+except ImportError:
+    from comfy.sample import prepare_mask
+
 class CustomNoisePredictor(torch.nn.Module):
     def __init__(self, model, pred, preds, conds):
         super().__init__()
@@ -133,7 +138,7 @@ def sample_pred(
     seed=None
 ):
     if noise_mask is not None:
-        noise_mask = comfy.sample.prepare_mask(noise_mask, noise.shape, model.load_device)
+        noise_mask = prepare_mask(noise_mask, noise.shape, model.load_device)
 
     dtype = model.model_dtype()
     device = model.load_device
