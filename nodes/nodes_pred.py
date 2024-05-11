@@ -562,7 +562,7 @@ class ScaledGuidancePredictor(NoisePredictor):
         return x_norm - x0_rescaled
 
 class CharacteristicGuidancePredictor(CachingNoisePredictor):
-    """Implementes Characteristic Guidance with Anderson Acceleration
+    """Implements Characteristic Guidance with Anderson Acceleration
 
     https://arxiv.org/pdf/2312.07586.pdf"""
 
@@ -577,6 +577,7 @@ class CharacteristicGuidancePredictor(CachingNoisePredictor):
             "keep_tolerance": ("FLOAT", { "default": 1.0, "step": 1.0, "min": 1.0, "max": 1000.0 }),
             "reuse_scale": ("FLOAT", { "default": 0.0, "step": 0.0001, "min": 0.0, "max": 1.0 }),
             "max_steps": ("INT", { "default": 20, "min": 5, "max": 1000 }),
+            "precondition_gradients": ("BOOLEAN", { "default": True }),
         },
         "optional": {
             "fallback": ("PREDICTION",),
@@ -594,6 +595,7 @@ class CharacteristicGuidancePredictor(CachingNoisePredictor):
         keep_tolerance,
         max_steps,
         reuse_scale,
+        precondition_gradients = True,
         fallback = None
     ):
         super().__init__()
@@ -608,6 +610,7 @@ class CharacteristicGuidancePredictor(CachingNoisePredictor):
         self.keep_tolerance = keep_tolerance
         self.max_steps = max_steps
         self.reuse = reuse_scale
+        self.precondition_gradients = precondition_gradients
 
         self.cond_deps = set()
         self.uncond_deps = set()
@@ -695,6 +698,9 @@ class CharacteristicGuidancePredictor(CachingNoisePredictor):
     def predict_noise_uncached(self, x, sigma, model, conds, model_options, seed):
         self.sample += 1
         self.status(f"starting ({len(x)}/{len(x)})", start=True)
+
+        def maybe_div(t, n):
+            return t if n is None else t / n
 
         xb, xc, xh, xw = x.shape
         cvg = []
@@ -787,14 +793,19 @@ class CharacteristicGuidancePredictor(CachingNoisePredictor):
 
                 # w = argmin_w ||A_g w - b_g||_l2
                 a_g = as_mat(g_b)
-                w = torch.linalg.lstsq(a_g, g.view(ub, xc*xh*xw, 1)).solution
+                if self.precondition_gradients:
+                    a_g_norm = torch.linalg.vector_norm(a_g, dim=-2, keepdim=True)
+                    a_g_norm = torch.maximum(a_g_norm, torch.tensor((1e-04,)).to(a_g))
+                else:
+                    a_g_norm = None
+                w = torch.linalg.lstsq(maybe_div(a_g, a_g_norm), g.view(ub, xc*xh*xw, 1)).solution
 
                 # g_AA = b_g - A_g w
-                g -= (a_g @ w).view(ub, xc, xh, xw)
+                g -= (maybe_div(a_g, a_g_norm) @ w).view(ub, xc, xh, xw)
                 del a_g
 
                 # dx_AA = x_g - A_x w
-                dx[uncvg] -= (as_mat(dx_b) @ w).view(ub, xc, xh, xw)
+                dx[uncvg] -= (maybe_div(as_mat(dx_b), a_g_norm) @ w).view(ub, xc, xh, xw)
                 del w
 
                 if len(dx_b) >= self.history:
