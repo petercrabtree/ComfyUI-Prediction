@@ -699,9 +699,6 @@ class CharacteristicGuidancePredictor(CachingNoisePredictor):
         self.sample += 1
         self.status(f"starting ({len(x)}/{len(x)})", start=True)
 
-        def maybe_div(t, n):
-            return t if n is None else t / n
-
         xb, xc, xh, xw = x.shape
         cvg = []
         uncvg = list(range(xb))
@@ -793,20 +790,26 @@ class CharacteristicGuidancePredictor(CachingNoisePredictor):
 
                 # w = argmin_w ||A_g w - b_g||_l2
                 a_g = as_mat(g_b)
+                a_g_norm = None
+
                 if self.precondition_gradients:
-                    a_g_norm = torch.linalg.vector_norm(a_g, dim=-2, keepdim=True)
-                    a_g_norm = torch.maximum(a_g_norm, torch.tensor((1e-04,)).to(a_g))
-                else:
-                    a_g_norm = None
-                w = torch.linalg.lstsq(maybe_div(a_g, a_g_norm), g.view(ub, xc*xh*xw, 1)).solution
+                    a_g_norm = torch.maximum(torch.linalg.vector_norm(a_g, dim=-2, keepdim=True), torch.tensor(1e-04))
+                    a_g /= a_g_norm
+
+                w = torch.linalg.lstsq(a_g, g.view(ub, xc*xh*xw, 1)).solution
 
                 # g_AA = b_g - A_g w
-                g -= (maybe_div(a_g, a_g_norm) @ w).view(ub, xc, xh, xw)
+                g -= (a_g @ w).view(ub, xc, xh, xw)
                 del a_g
 
                 # dx_AA = x_g - A_x w
-                dx[uncvg] -= (maybe_div(as_mat(dx_b), a_g_norm) @ w).view(ub, xc, xh, xw)
-                del w
+                a_dx_b = as_mat(dx_b)
+
+                if self.precondition_gradients:
+                    a_dx_b /= a_g_norm
+
+                dx[uncvg] -= (a_dx_b @ w).view(ub, xc, xh, xw)
+                del a_dx_b, w, a_g_norm
 
                 if len(dx_b) >= self.history:
                     del dx_b[0], g_b[0]
