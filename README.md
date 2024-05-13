@@ -20,12 +20,14 @@ Follow these steps for fully custom prediction:
 4. You'll need one or more prompts. Chain <ins>conditioning > CLIP Text Encode (Prompt)</ins> to <ins>sampling > prediction > Conditioned Prediction</ins> to get started.
 5. After your prediction chain, connect the result to the *noise_prediction* input of your **Sample Predictions** node.
 
+Some utility nodes for manipulating sigams are provided under <ins>Add Node > sampling > custom_sampling > sigmas</ins>.
+
 # Predictors
 
 ## Primitive Nodes
 All other predictions can be implemented in terms of these nodes. However, it may get a little messy.
 
-### Conditioned Prediction 
+### Conditioned Prediction
 Evaluates your chosen model with a prompt (conditioning). You need to pick a unique conditioning name like "positive", "negative", or "empty".
 
 The names are arbitrary and you can choose any name, but the names may eventually interact with ControlNet if/when it's implemented.
@@ -40,8 +42,8 @@ Linearly scales a prediction.
 
 ``prediction * scale``
 
-### Switch Predictions 
-Switches from one prediction to another one based on the timestep sigma. Use <ins>sampling > custom_sampling > sigmas > Split Sigmas</ins> to create a sub-range of timestep sigmas.
+### Switch Predictions
+Switches from one prediction to another one based on the timestep sigma. Use <ins>sampling > custom_sampling > sigmas > Select Sigmas</ins> to create a sub-ranges of timestep sigmas.
 
 ``prediction_B when current_sigma in sigmas_B otherwise prediction_A``
 
@@ -91,6 +93,51 @@ Implements https://arxiv.org/abs/2304.04968.
 Re-aligns a desirable (positive) prediction called *guidance* away from an undesirable (negative) prediction called *avoid_and_erase*, and erases some of the negative prediction as well.
 
 ``guidance - (guidance proj avoid_and_erase) * avoid_scale - avoid_and_erase * erase_scale``
+
+# Sigma Utilities
+These utility nodes are provided for manipulating sigmas for use with the **Switch Predictions** node. These nodes are under <ins>sampling > custom_sampling > sigmas</ins>.
+
+One important thing to keep in mind is that ComfyUI SIGMAS lists contain the ending output sigma, even though the model is not evaulated at this sigma.
+So, a 30-step full denoising schedule actually contains 31 sigmas (indexed 0 to 30), with the final sigma being ``0.0``.
+
+### Select Sigmas
+This node is an alternative to the **Split Sigmas** built-in node. It allows you to specify the specific ``sigmas`` to ``select`` by 0-based index as a comma seperated list.
+
+Ranges are supported with ``[start]:[end]`` syntax. The ending bound is exclusive and negative indices are supported, which index from the end of the list. Both start and/or end may be ommitted.<br>
+As a convienience, instead of specifing a list, you may specify ``mod <N>`` to select every N'th sigma. You can use this to easily alternate between prediction strageies.<br>
+If ``chained`` is disabled, the final sigma in the input list will be dropped. If you're chaning **Select Sigmas** nodes, you should enable ``chained`` in almost all cases.<br>
+If a specified index is out of range, it is ignored.
+
+Examples, assuming a 10-timestep schedule with sigmas ``10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0``.
+
+```
+select: 0, 1, 2        chained: false => 10, 9, 8
+select: 0, 1, 3:6, -2  chained: false  => 10, 9, 7, 6, 5, 2
+select: mod 2          chained: false  => 9, 7, 5, 3, 1
+select: mod 3          chained: false  => 8, 5, 2, 0
+select: 100, 0, -100   chained: false  => 10
+
+select: 5:             chained: false  => 5, 4, 3, 2, 1
+select: :5             chained: false  => 10, 9, 8, 7, 6
+select: :              chained: false  => 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+
+select: -1             chained: false  => 1
+select: -1             chained: true   => 0
+select: -1:-4          chained: true   => 0, 1, 2
+```
+
+As explained above, if ``chained`` is disabled, the ``0`` is dropped from the list and valid indexes are from ``-10`` to ``9``. Otherwise, it is not dropped and valid indexes are from ``-11`` to ``10``.
+
+### Split At Sigma
+Similar to the built in **Split Sigmas** node, this node splits a list of sigmas based on the *value* of the sigma instead of the index.
+This node takess a monotonically decreasing list of ``sigmas``, and splits at the earliest sigma which is less than or equal to the specified ``sigma``.
+
+This node is primarily useful in setting up refiner models without having to reverse engineer the timestep schedule for differing numbers of steps.
+
+### Log Sigmas
+Prints the provided list of ``sigmas`` to the text console, with an optional ``message`` prefix to differentiate nodes. This is useful for debugging workflows.
+
+If the sigmas list and message don't change, ComfyUI will not evaluate the node and so nothing will be printed.
 
 # Limitations
 ControlNet is not supported at this time.
