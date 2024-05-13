@@ -1,6 +1,6 @@
 {
-  "last_node_id": 72,
-  "last_link_id": 142,
+  "last_node_id": 75,
+  "last_link_id": 155,
   "nodes": [
     {
       "id": 25,
@@ -96,133 +96,11 @@
       ]
     },
     {
-      "id": 53,
-      "type": "ConditionedPrediction",
-      "pos": [
-        929.7399340820311,
-        295.41999908447264
-      ],
-      "size": {
-        "0": 315,
-        "1": 58
-      },
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "conditioning",
-          "type": "CONDITIONING",
-          "link": 78
-        }
-      ],
-      "outputs": [
-        {
-          "name": "prediction",
-          "type": "PREDICTION",
-          "links": [
-            100
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ConditionedPrediction"
-      },
-      "widgets_values": [
-        "negative"
-      ]
-    },
-    {
-      "id": 54,
-      "type": "ConditionedPrediction",
-      "pos": [
-        925.7399340820311,
-        406.41999908447264
-      ],
-      "size": {
-        "0": 315,
-        "1": 58
-      },
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "conditioning",
-          "type": "CONDITIONING",
-          "link": 82
-        }
-      ],
-      "outputs": [
-        {
-          "name": "prediction",
-          "type": "PREDICTION",
-          "links": [
-            101,
-            103,
-            110
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ConditionedPrediction"
-      },
-      "widgets_values": [
-        "empty"
-      ]
-    },
-    {
-      "id": 56,
-      "type": "CFGPrediction",
-      "pos": [
-        2245,
-        516
-      ],
-      "size": {
-        "0": 315,
-        "1": 78
-      },
-      "flags": {},
-      "order": 13,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 86
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 87
-        }
-      ],
-      "outputs": [
-        {
-          "name": "prediction",
-          "type": "PREDICTION",
-          "links": [],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CFGPrediction"
-      },
-      "widgets_values": [
-        6
-      ]
-    },
-    {
       "id": 72,
       "type": "Reroute",
       "pos": [
-        2672,
-        551
+        2650.116147237216,
+        347.9113717632276
       ],
       "size": [
         75,
@@ -235,7 +113,7 @@
         {
           "name": "",
           "type": "*",
-          "link": 140
+          "link": 155
         }
       ],
       "outputs": [
@@ -327,39 +205,6 @@
       ]
     },
     {
-      "id": 5,
-      "type": "EmptyLatentImage",
-      "pos": [
-        386,
-        1476
-      ],
-      "size": {
-        "0": 315,
-        "1": 106
-      },
-      "flags": {},
-      "order": 1,
-      "mode": 0,
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            94
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "EmptyLatentImage"
-      },
-      "widgets_values": [
-        1080,
-        720,
-        2
-      ]
-    },
-    {
       "id": 14,
       "type": "ModelSamplingDiscrete",
       "pos": [
@@ -412,7 +257,7 @@
         "1": 98
       },
       "flags": {},
-      "order": 2,
+      "order": 1,
       "mode": 0,
       "outputs": [
         {
@@ -487,118 +332,6 @@
         "showOutputText": false,
         "horizontal": true
       }
-    },
-    {
-      "id": 8,
-      "type": "VAEDecode",
-      "pos": [
-        3261,
-        836
-      ],
-      "size": {
-        "0": 210,
-        "1": 46
-      },
-      "flags": {},
-      "order": 22,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "samples",
-          "type": "LATENT",
-          "link": 136,
-          "slot_index": 0
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 130
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            139
-          ],
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEDecode"
-      }
-    },
-    {
-      "id": 20,
-      "type": "PreviewImage",
-      "pos": [
-        3542,
-        836
-      ],
-      "size": {
-        "0": 1251.4755859375,
-        "1": 826.39794921875
-      },
-      "flags": {},
-      "order": 23,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 139
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "PreviewImage"
-      }
-    },
-    {
-      "id": 61,
-      "type": "ScaledGuidancePrediction",
-      "pos": [
-        2243,
-        389
-      ],
-      "size": {
-        "0": 315,
-        "1": 78
-      },
-      "flags": {},
-      "order": 19,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "guidance",
-          "type": "PREDICTION",
-          "link": 115,
-          "slot_index": 0
-        },
-        {
-          "name": "baseline",
-          "type": "PREDICTION",
-          "link": 110,
-          "slot_index": 1
-        }
-      ],
-      "outputs": [
-        {
-          "name": "prediction",
-          "type": "PREDICTION",
-          "links": [
-            140
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ScaledGuidancePrediction"
-      },
-      "widgets_values": [
-        8
-      ]
     },
     {
       "id": 6,
@@ -724,11 +457,300 @@
       ]
     },
     {
+      "id": 5,
+      "type": "EmptyLatentImage",
+      "pos": [
+        391,
+        1608
+      ],
+      "size": {
+        "0": 315,
+        "1": 106
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            94
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1080,
+        720,
+        2
+      ]
+    },
+    {
+      "id": 52,
+      "type": "ConditionedPrediction",
+      "pos": [
+        924.7399340820311,
+        183.41999908447266
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 75
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prediction",
+          "type": "PREDICTION",
+          "links": [
+            145
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditionedPrediction"
+      },
+      "widgets_values": [
+        "positive"
+      ]
+    },
+    {
+      "id": 53,
+      "type": "ConditionedPrediction",
+      "pos": [
+        929.7399340820311,
+        295.41999908447264
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 78
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prediction",
+          "type": "PREDICTION",
+          "links": [
+            146
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditionedPrediction"
+      },
+      "widgets_values": [
+        "negative"
+      ]
+    },
+    {
+      "id": 73,
+      "type": "AvoidErasePrediction",
+      "pos": [
+        1314,
+        187
+      ],
+      "size": {
+        "0": 315,
+        "1": 98
+      },
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "PREDICTION",
+          "link": 145
+        },
+        {
+          "name": "negative",
+          "type": "PREDICTION",
+          "link": 146
+        },
+        {
+          "name": "empty",
+          "type": "PREDICTION",
+          "link": 147
+        }
+      ],
+      "outputs": [
+        {
+          "name": "guidance",
+          "type": "PREDICTION",
+          "links": [
+            148,
+            150
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AvoidErasePrediction"
+      },
+      "widgets_values": [
+        0.2
+      ]
+    },
+    {
+      "id": 54,
+      "type": "ConditionedPrediction",
+      "pos": [
+        925.7399340820311,
+        406.41999908447264
+      ],
+      "size": {
+        "0": 315,
+        "1": 58
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 82
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prediction",
+          "type": "PREDICTION",
+          "links": [
+            110,
+            147,
+            149,
+            153
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditionedPrediction"
+      },
+      "widgets_values": [
+        "empty"
+      ]
+    },
+    {
+      "id": 74,
+      "type": "CombinePredictions",
+      "pos": [
+        1701,
+        263
+      ],
+      "size": {
+        "0": 315,
+        "1": 78
+      },
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prediction_A",
+          "type": "PREDICTION",
+          "link": 148
+        },
+        {
+          "name": "prediction_B",
+          "type": "PREDICTION",
+          "link": 149
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prediction",
+          "type": "PREDICTION",
+          "links": [
+            152
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CombinePredictions"
+      },
+      "widgets_values": [
+        "A + B"
+      ]
+    },
+    {
+      "id": 56,
+      "type": "CFGPrediction",
+      "pos": [
+        2220.2986090624995,
+        642.8204918027345
+      ],
+      "size": {
+        "0": 315,
+        "1": 78
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 86
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 87
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prediction",
+          "type": "PREDICTION",
+          "links": [],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CFGPrediction"
+      },
+      "widgets_values": [
+        6
+      ]
+    },
+    {
       "id": 57,
       "type": "PerpNegPrediction",
       "pos": [
-        2246,
-        645
+        2219.2986090624995,
+        771.8204918027345
       ],
       "size": {
         "0": 315,
@@ -772,192 +794,16 @@
       ]
     },
     {
-      "id": 58,
-      "type": "CombinePredictions",
-      "pos": [
-        1406.7399340820311,
-        319.41999908447264
-      ],
-      "size": {
-        "0": 315,
-        "1": 78
-      },
-      "flags": {},
-      "order": 16,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "prediction_A",
-          "type": "PREDICTION",
-          "link": 100,
-          "slot_index": 0
-        },
-        {
-          "name": "prediction_B",
-          "type": "PREDICTION",
-          "link": 101,
-          "slot_index": 1
-        }
-      ],
-      "outputs": [
-        {
-          "name": "prediction",
-          "type": "PREDICTION",
-          "links": [
-            114
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CombinePredictions"
-      },
-      "widgets_values": [
-        "A - B"
-      ]
-    },
-    {
-      "id": 62,
-      "type": "AvoidErasePrediction",
-      "pos": [
-        1837.7399340820311,
-        234.41999908447266
-      ],
-      "size": {
-        "0": 330,
-        "1": 102
-      },
-      "flags": {},
-      "order": 18,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "guidance",
-          "type": "PREDICTION",
-          "link": 113
-        },
-        {
-          "name": "avoid_and_erase",
-          "type": "PREDICTION",
-          "link": 114
-        }
-      ],
-      "outputs": [
-        {
-          "name": "prediction",
-          "type": "PREDICTION",
-          "links": [
-            115
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "AvoidErasePrediction"
-      },
-      "widgets_values": [
-        1,
-        0.1
-      ]
-    },
-    {
-      "id": 59,
-      "type": "CombinePredictions",
-      "pos": [
-        1409.7399340820311,
-        182.41999908447266
-      ],
-      "size": {
-        "0": 315,
-        "1": 78
-      },
-      "flags": {},
-      "order": 17,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "prediction_A",
-          "type": "PREDICTION",
-          "link": 102,
-          "slot_index": 0
-        },
-        {
-          "name": "prediction_B",
-          "type": "PREDICTION",
-          "link": 103,
-          "slot_index": 1
-        }
-      ],
-      "outputs": [
-        {
-          "name": "prediction",
-          "type": "PREDICTION",
-          "links": [
-            113
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "CombinePredictions"
-      },
-      "widgets_values": [
-        "A - B"
-      ]
-    },
-    {
-      "id": 52,
-      "type": "ConditionedPrediction",
-      "pos": [
-        924.7399340820311,
-        183.41999908447266
-      ],
-      "size": {
-        "0": 315,
-        "1": 58
-      },
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "conditioning",
-          "type": "CONDITIONING",
-          "link": 75
-        }
-      ],
-      "outputs": [
-        {
-          "name": "prediction",
-          "type": "PREDICTION",
-          "links": [
-            102
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ConditionedPrediction"
-      },
-      "widgets_values": [
-        "positive"
-      ]
-    },
-    {
       "id": 28,
       "type": "SamplerCustomPrediction",
       "pos": [
-        2811,
-        772
+        2834,
+        896
       ],
-      "size": {
-        "0": 405.5999755859375,
-        "1": 186
-      },
+      "size": [
+        405.5999755859375,
+        398
+      ],
       "flags": {},
       "order": 21,
       "mode": 0,
@@ -1012,6 +858,174 @@
         true,
         1,
         "fixed"
+      ]
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        3279,
+        902
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 136,
+          "slot_index": 0
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 130
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            139
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 20,
+      "type": "PreviewImage",
+      "pos": [
+        3525,
+        903
+      ],
+      "size": {
+        "0": 1251.4755859375,
+        "1": 826.39794921875
+      },
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 139
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 75,
+      "type": "CharacteristicGuidancePrediction",
+      "pos": [
+        2225.0138359374996,
+        328.648005126953
+      ],
+      "size": {
+        "0": 315,
+        "1": 266
+      },
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "cond",
+          "type": "PREDICTION",
+          "link": 152
+        },
+        {
+          "name": "uncond",
+          "type": "PREDICTION",
+          "link": 153
+        },
+        {
+          "name": "fallback",
+          "type": "PREDICTION",
+          "link": 151
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prediction",
+          "type": "PREDICTION",
+          "links": [],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CharacteristicGuidancePrediction"
+      },
+      "widgets_values": [
+        6,
+        2,
+        -3,
+        -4,
+        1,
+        0,
+        20,
+        true
+      ]
+    },
+    {
+      "id": 61,
+      "type": "ScaledGuidancePrediction",
+      "pos": [
+        2221.116147237216,
+        185.91137176322826
+      ],
+      "size": {
+        "0": 315,
+        "1": 102
+      },
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "guidance",
+          "type": "PREDICTION",
+          "link": 150,
+          "slot_index": 0
+        },
+        {
+          "name": "baseline",
+          "type": "PREDICTION",
+          "link": 110,
+          "slot_index": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prediction",
+          "type": "PREDICTION",
+          "links": [
+            151,
+            155
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ScaledGuidancePrediction"
+      },
+      "widgets_values": [
+        7,
+        0
       ]
     }
   ],
@@ -1169,67 +1183,11 @@
       "LATENT"
     ],
     [
-      100,
-      53,
-      0,
-      58,
-      0,
-      "PREDICTION"
-    ],
-    [
-      101,
-      54,
-      0,
-      58,
-      1,
-      "PREDICTION"
-    ],
-    [
-      102,
-      52,
-      0,
-      59,
-      0,
-      "PREDICTION"
-    ],
-    [
-      103,
-      54,
-      0,
-      59,
-      1,
-      "PREDICTION"
-    ],
-    [
       110,
       54,
       0,
       61,
       1,
-      "PREDICTION"
-    ],
-    [
-      113,
-      59,
-      0,
-      62,
-      0,
-      "PREDICTION"
-    ],
-    [
-      114,
-      58,
-      0,
-      62,
-      1,
-      "PREDICTION"
-    ],
-    [
-      115,
-      62,
-      0,
-      61,
-      0,
       "PREDICTION"
     ],
     [
@@ -1265,14 +1223,6 @@
       "IMAGE"
     ],
     [
-      140,
-      61,
-      0,
-      72,
-      0,
-      "*"
-    ],
-    [
       141,
       72,
       0,
@@ -1287,16 +1237,96 @@
       68,
       0,
       "*"
+    ],
+    [
+      145,
+      52,
+      0,
+      73,
+      0,
+      "PREDICTION"
+    ],
+    [
+      146,
+      53,
+      0,
+      73,
+      1,
+      "PREDICTION"
+    ],
+    [
+      147,
+      54,
+      0,
+      73,
+      2,
+      "PREDICTION"
+    ],
+    [
+      148,
+      73,
+      0,
+      74,
+      0,
+      "PREDICTION"
+    ],
+    [
+      149,
+      54,
+      0,
+      74,
+      1,
+      "PREDICTION"
+    ],
+    [
+      150,
+      73,
+      0,
+      61,
+      0,
+      "PREDICTION"
+    ],
+    [
+      151,
+      61,
+      0,
+      75,
+      2,
+      "PREDICTION"
+    ],
+    [
+      152,
+      74,
+      0,
+      75,
+      0,
+      "PREDICTION"
+    ],
+    [
+      153,
+      54,
+      0,
+      75,
+      1,
+      "PREDICTION"
+    ],
+    [
+      155,
+      61,
+      0,
+      72,
+      0,
+      "*"
     ]
   ],
   "groups": [
     {
       "title": "Choose",
       "bounding": [
-        2226,
-        313,
-        531,
-        468
+        2204,
+        110,
+        500,
+        796
       ],
       "color": "#3f789e",
       "font_size": 24
