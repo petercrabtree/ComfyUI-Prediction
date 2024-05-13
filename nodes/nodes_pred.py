@@ -911,46 +911,56 @@ class CharacteristicGuidancePredictor(CachingNoisePredictor):
         return result
 
 class AvoidErasePredictor(NoisePredictor):
-    """Implements A - ((A proj B) * avoid_scale) - (B * erase_scale)"""
+    """Implements Avoid and Erase V2 guidance."""
 
     INPUTS = {
         "required": {
-            "guidance": ("PREDICTION",),
-            "avoid_and_erase": ("PREDICTION",),
-            "avoid_scale": ("FLOAT", {
-                "default": 1.0,
-                "step": 0.01,
-                "min": 0.0,
-                "max": 100.0,
-            }),
+            "positive": ("PREDICTION",),
+            "negative": ("PREDICTION",),
+            "empty": ("PREDICTION",),
             "erase_scale": ("FLOAT", {
-                "default": 0.1,
+                "default": 0.2,
                 "step": 0.01,
                 "min": 0.0,
-                "max": 100.0,
+                "max": 1.0,
             }),
         }
     }
 
-    def __init__(self, guidance, avoid_and_erase, avoid_scale, erase_scale):
-        self.lhs = guidance
-        self.rhs = avoid_and_erase
-        self.avoid_scale = avoid_scale
+    OUTPUTS = { "guidance": "PREDICTION" }
+
+    def __init__(self, positive, negative, empty, erase_scale):
+        self.positive_pred = positive
+        self.negative_pred = negative
+        self.empty_pred = empty
         self.erase_scale = erase_scale
 
     def get_conds(self):
-        return self.merge_conds(self.lhs.get_conds(), self.rhs.get_conds())
+        return self.merge_conds(
+            self.positive_pred.get_conds(),
+            self.negative_pred.get_conds(),
+            self.empty_pred.get_conds()
+        )
 
     def get_models(self):
-        return self.lhs.get_models() | self.rhs.get_models()
+        return self.positive_pred.get_models() \
+            | self.negative_pred.get_models() \
+            | self.empty_pred.get_models()
 
     def get_preds(self):
-        return {self} | self.lhs.get_preds() | self.rhs.get_preds()
+        return {self} \
+            | self.positive_pred.get_preds() \
+            | self.negative_pred.get_preds() \
+            | self.empty_pred.get_preds()
 
     def predict_noise(self, x, timestep, model, conds, model_options, seed):
-        lhs = self.lhs.predict_noise(x, timestep, model, conds, model_options, seed)
-        rhs = self.rhs.predict_noise(x, timestep, model, conds, model_options, seed)
-        return lhs - (proj(lhs, rhs) * self.avoid_scale) - (rhs * self.erase_scale)
+        pos = self.positive_pred.predict_noise(x, timestep, model, conds, model_options, seed)
+        neg = self.negative_pred.predict_noise(x, timestep, model, conds, model_options, seed)
+        empty = self.empty_pred.predict_noise(x, timestep, model, conds, model_options, seed)
+
+        pos_ind = pos - empty
+        neg_ind = neg - empty
+        return oproj(pos_ind, neg_ind) - oproj(neg_ind, pos_ind) * self.erase_scale
 
 def dot(a, b):
     return (a * b).sum(dim=(1, 2, 3), keepdims=True)
@@ -1057,7 +1067,7 @@ class PerpNegPredictor(CachingNoisePredictor):
             "neg_scale": ("FLOAT", {
                 "default": 1.0,
                 "min": 0.0,
-                "max": 100.0,
+                "max": 2.0,
                 "step": 0.05,
             })
         }

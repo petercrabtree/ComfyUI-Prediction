@@ -89,10 +89,12 @@ Implements https://arxiv.org/abs/2304.04968.
 ``pos_ind = positive - empty; neg_ind = negative - empty``<br>
 ``(pos_ind - (neg_ind oproj pos_ind) * neg_scale) * cfg_scale + empty``
 
-### Avoid and Erase Prediction
-Re-aligns a desirable (positive) prediction called *guidance* away from an undesirable (negative) prediction called *avoid_and_erase*, and erases some of the negative prediction as well.
+### Avoid and Erase Prediction (v2)
+Implements a modification of the Perp-Neg algorithm that avoids moving in the direction of the negative guidance.
+The result is a guidance vector that should be recombined with the empty prediction using the **Scaled Guidance Prediction** node or addition in preparation for **Characteristic Guidance Prediction**.
 
-``guidance - (guidance proj avoid_and_erase) * avoid_scale - avoid_and_erase * erase_scale``
+``pos_ind = positive - empty; neg_ind = negative - empty``<br>
+``pos_ind oproj neg_ind - (neg_ind oproj pos_ind) * erase_scale``
 
 # Sigma Utilities
 These utility nodes are provided for manipulating sigmas for use with the **Switch Predictions** node. These nodes are under <ins>sampling > custom_sampling > sigmas</ins>.
