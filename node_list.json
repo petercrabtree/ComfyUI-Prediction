@@ -2,10 +2,15 @@
     "SamplerCustomPrediction":"",
     "ConditionedPrediction":"",
     "CombinePredictions":"",
+    "InterpolatePredictions":"",
     "SwitchPredictions":"",
     "ScaledGuidancePrediction":"",
+    "CharacteristicGuidancePrediction":"",
     "AvoidErasePrediction":"",
     "ScalePrediction":"",
     "CFGPrediction":"",
-    "PerpNegPrediction":""
+    "PerpNegPrediction":"",
+    "SelectSigmas":"",
+    "SplitAtSigma":"",
+    "LogSigmas":""
 }
