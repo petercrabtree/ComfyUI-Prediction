@@ -506,6 +506,87 @@ class SwitchPredictor(NoisePredictor):
 
         return preds
 
+class EarlyMiddleLatePredictor(NoisePredictor):
+    """Switches predictions based on an early-middle-late schedule."""
+    INPUTS = {
+        "required": {
+            "sigmas": ("SIGMAS",),
+            "early_prediction": ("PREDICTION",),
+            "middle_prediction": ("PREDICTION",),
+            "late_prediction": ("PREDICTION",),
+            "early_steps": ("INT", { "min": 0, "max": 1000, "default": 1 }),
+            "late_steps": ("INT", { "min": 0, "max": 1000, "default": 5 }),
+        }
+    }
+
+    def __init__(self, early_prediction, middle_prediction, late_prediction, sigmas, early_steps, late_steps):
+        self.early_pred = early_prediction
+        self.middle_pred = middle_prediction
+        self.late_pred = late_prediction
+
+        late_step = -late_steps - 1
+
+        self.early_sigmas = sigmas[:early_steps]
+        self.middle_sigmas = sigmas[early_steps:late_step]
+        self.late_sigmas = sigmas[late_step:-1]
+
+        if torch.any(torch.isin(self.early_sigmas, self.middle_sigmas)) \
+            or torch.any(torch.isin(self.early_sigmas, self.late_sigmas)) \
+            or torch.any(torch.isin(self.middle_sigmas, self.late_sigmas)) \
+        :
+            raise ValueError("Sigma schedule is ambiguous.")
+
+    def get_conds(self):
+        return self.merge_conds(self.early_pred, self.middle_pred, self.late_pred)
+
+    def get_models(self):
+        return self.merge_models(self.early_pred, self.middle_pred, self.late_pred)
+
+    def get_preds(self):
+        return self.merge_preds(self.early_pred, self.middle_pred, self.late_pred)
+
+    def predict_noise(self, x, sigma, model, conds, model_options, seed):
+        cpu_sigmas = sigma.cpu()
+        early_inds = torch.argwhere(torch.isin(cpu_sigmas, self.early_sigmas)).squeeze(1)
+        middle_inds = torch.argwhere(torch.isin(cpu_sigmas, self.middle_sigmas)).squeeze(1)
+        late_inds = torch.argwhere(torch.isin(cpu_sigmas, self.late_sigmas)).squeeze(1)
+
+        preds = torch.empty_like(x)
+
+        assert (len(early_inds) + len(middle_inds) + len(late_inds)) == len(x)
+
+        if len(early_inds) > 0:
+            preds[early_inds] = self.early_pred.predict_noise(
+                x[early_inds],
+                sigma[early_inds],
+                model,
+                conds,
+                model_options,
+                seed
+            )
+
+        if len(middle_inds) > 0:
+            preds[middle_inds] = self.middle_pred.predict_noise(
+                x[middle_inds],
+                sigma[middle_inds],
+                model,
+                conds,
+                model_options,
+                seed
+            )
+
+        if len(late_inds) > 0:
+            preds[late_inds] = self.late_pred.predict_noise(
+                x[late_inds],
+                sigma[late_inds],
+                model,
+                conds,
+                model_options,
+                seed
+            )
+
+        return preds
+
 class ScaledGuidancePredictor(NoisePredictor):
     """Implements A * scale + B"""
     INPUTS = {
@@ -1128,6 +1209,7 @@ make_node(ConditionedPredictor, "Conditioned Prediction")
 make_node(CombinePredictor, "Combine Predictions", class_name="CombinePredictions")
 make_node(InterpolatePredictor, "Interpolate Predictions", class_name="InterpolatePredictions")
 make_node(SwitchPredictor, "Switch Predictions", class_name="SwitchPredictions")
+make_node(EarlyMiddleLatePredictor, "Switch Early/Middle/Late Predictions")
 make_node(ScaledGuidancePredictor, "Scaled Guidance Prediction")
 make_node(CharacteristicGuidancePredictor, "Characteristic Guidance Prediction")
 make_node(AvoidErasePredictor, "Avoid and Erase Prediction")

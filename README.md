@@ -73,6 +73,11 @@ It's recommended that you use the **Switch Predictions** node to skip CHG on the
 
 ## Prebuilt Nodes
 
+### Switch Early/Middle/Late Predictions
+Convienence node similar to a three-way **Switch Predictions** node, where the number of ``early_steps`` and ``late_steps`` can be specified directly.
+
+The whole applicable ``sigmas`` schedule should be provided to the node, and the schedule must be unambiguous when split. (Restart schedules can often be ambiguous.)
+
 ### Interpolate Predictions
 Linearly interpolates two predictions.
 
@@ -115,7 +120,7 @@ If a specified index is out of range, it is ignored.
 
 Examples, assuming a 10-timestep schedule with sigmas ``10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0``:
 
-```
+``
 select: 0, 1, 2        chained: false  => 10, 9, 8
 select: 0, 1, 3:6, -2  chained: false  => 10, 9, 7, 6, 5, 2
 select: mod 2          chained: false  => 9, 7, 5, 3, 1
@@ -129,7 +134,7 @@ select: :              chained: false  => 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
 select: -1             chained: false  => 1
 select: -1             chained: true   => 0
 select: -1:-4          chained: true   => 0, 1, 2
-```
+``
 
 ### Split At Sigma
 Similar to the built in **Split Sigmas** node, this node splits a list of sigmas based on the *value* of the sigma instead of the index.
