@@ -124,7 +124,7 @@ Examples, assuming a 10-timestep schedule with sigmas ``10, 9, 8, 7, 6, 5, 4, 3,
 select: 0, 1, 2        chained: false  => 10, 9, 8
 select: 0, 1, 3:6, -2  chained: false  => 10, 9, 7, 6, 5, 2
 select: mod 2          chained: false  => 9, 7, 5, 3, 1
-select: mod 3          chained: false  => 8, 5, 2, 0
+select: mod 3          chained: false  => 8, 5, 2
 select: 100, 0, -100   chained: false  => 10
 
 select: 5:             chained: false  => 5, 4, 3, 2, 1
