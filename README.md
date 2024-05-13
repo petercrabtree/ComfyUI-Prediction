@@ -103,15 +103,18 @@ So, a 30-step full denoising schedule actually contains 31 sigmas (indexed 0 to 
 ### Select Sigmas
 This node is an alternative to the **Split Sigmas** built-in node. It allows you to specify the specific ``sigmas`` to ``select`` by 0-based index as a comma seperated list.
 
-Ranges are supported with ``[start]:[end]`` syntax. The ending bound is exclusive and negative indices are supported, which index from the end of the list. Both start and/or end may be ommitted.<br>
-As a convienience, instead of specifing a list, you may specify ``mod <N>`` to select every N'th sigma. You can use this to easily alternate between prediction strageies.<br>
-If ``chained`` is disabled, the final sigma in the input list will be dropped. If you're chaning **Select Sigmas** nodes, you should enable ``chained`` in almost all cases.<br>
+Ranges are supported with ``[start]:[end]`` syntax. The ending bound is exclusive and negative indices are supported, which index from the end of the list. Both start and/or end may be ommitted.
+
+As a convienience, instead of specifing a list, you may specify ``mod <N>`` to select every N'th sigma. You can use this to easily alternate between prediction strageies.
+
+If ``chained`` is disabled, the final sigma in the input list will be dropped. If you're chaning **Select Sigmas** nodes, you should enable ``chained`` in almost all cases.
+
 If a specified index is out of range, it is ignored.
 
-Examples, assuming a 10-timestep schedule with sigmas ``10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0``.
+Examples, assuming a 10-timestep schedule with sigmas ``10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0``:
 
 ```
-select: 0, 1, 2        chained: false => 10, 9, 8
+select: 0, 1, 2        chained: false  => 10, 9, 8
 select: 0, 1, 3:6, -2  chained: false  => 10, 9, 7, 6, 5, 2
 select: mod 2          chained: false  => 9, 7, 5, 3, 1
 select: mod 3          chained: false  => 8, 5, 2, 0
@@ -125,8 +128,6 @@ select: -1             chained: false  => 1
 select: -1             chained: true   => 0
 select: -1:-4          chained: true   => 0, 1, 2
 ```
-
-As explained above, if ``chained`` is disabled, the ``0`` is dropped from the list and valid indexes are from ``-10`` to ``9``. Otherwise, it is not dropped and valid indexes are from ``-11`` to ``10``.
 
 ### Split At Sigma
 Similar to the built in **Split Sigmas** node, this node splits a list of sigmas based on the *value* of the sigma instead of the index.
