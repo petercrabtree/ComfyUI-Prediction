@@ -936,22 +936,13 @@ class AvoidErasePredictor(NoisePredictor):
         self.erase_scale = erase_scale
 
     def get_conds(self):
-        return self.merge_conds(
-            self.positive_pred.get_conds(),
-            self.negative_pred.get_conds(),
-            self.empty_pred.get_conds()
-        )
+        return self.merge_conds(self.positive_pred, self.negative_pred, self.empty_pred)
 
     def get_models(self):
-        return self.positive_pred.get_models() \
-            | self.negative_pred.get_models() \
-            | self.empty_pred.get_models()
+        return self.merge_models(self.positive_pred, self.negative_pred, self.empty_pred)
 
     def get_preds(self):
-        return {self} \
-            | self.positive_pred.get_preds() \
-            | self.negative_pred.get_preds() \
-            | self.empty_pred.get_preds()
+        return self.merge_preds(self.positive_pred, self.negative_pred, self.empty_pred)
 
     def predict_noise(self, x, timestep, model, conds, model_options, seed):
         pos = self.positive_pred.predict_noise(x, timestep, model, conds, model_options, seed)
@@ -1003,7 +994,7 @@ class ScalePredictor(NoisePredictor):
         return self.inner.get_models()
 
     def get_preds(self):
-        return {self} | self.inner.get_preds()
+        return self.merge_preds(self.inner)
 
     def predict_noise(self, x, timestep, model, conds, model_options, seed):
         return self.inner.predict_noise(x, timestep, model, conds, model_options, seed) * self.scale
