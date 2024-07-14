@@ -39,13 +39,24 @@ except ImportError:
     from comfy.sample import prepare_mask
 
 class CustomNoisePredictor(torch.nn.Module):
-    def __init__(self, model, pred, preds, conds):
+    def __init__(
+            self,
+            model,
+            pred,
+            preds,
+            conds,
+            positive_pred,
+            negative_pred,
+            empty_pred):
         super().__init__()
 
         self.inner_model = model
         self.pred = pred
         self.preds = preds
         self.conds = conds
+        self.positive_pred = positive_pred
+        self.negative_pred = negative_pred
+        self.empty_pred = empty_pred
 
     def apply_model(self, x, timestep, cond=None, uncond=None, cond_scale=None, model_options=None, seed=None):
         if model_options is None:
@@ -55,10 +66,56 @@ class CustomNoisePredictor(torch.nn.Module):
             pred.begin_sample()
 
         try:
-            return self.pred.predict_noise(x, timestep, self.inner_model, self.conds, model_options, seed)
+            result = self.pred.predict_noise(x, timestep, self.inner_model, self.conds, model_options, seed)
+
+            # for improved compatibility with ComfyUI extensions that use it,
+            # we call any sampler_post_cfg_functions
+            # (required for CFG++ samplers, for example)
+            if (cfg_hooks := model_options.get("sampler_post_cfg_function")) is not None:
+                args = (x, timestep, self.inner_model, self.conds, model_options, seed)
+
+                # TODO: would it be more performant to combine into a single
+                #       call to calc_cond_batch? How?
+                # TODO: it'd be nice to avoid computing cond/uncond/empty_cond
+                if self.positive_pred is not None:
+                    cond_pred = self.positive_pred.predict_noise(*args)
+                    cond = x - cond_pred
+                else:
+                    cond = cond_pred = None
+                
+                if self.negative_pred is not None:
+                    uncond_pred = self.negative_pred.predict_noise(*args)
+                    uncond = x - uncond_pred
+                else:
+                    uncond = uncond_pred = None
+                    
+                if self.empty_pred is not None:
+                    empty_pred = self.empty_pred.predict_noise(*args)
+                    empty_cond = x - empty_pred
+                else:
+                    empty_pred = empty_cond = None
+                
+                for f in cfg_hooks:
+                    args = {
+                        "denoised": result,
+                        "cond": cond,
+                        "uncond": uncond,
+                        "model": self.inner_model,
+                        "uncond_denoised": uncond_pred,
+                        "cond_denoised": cond_pred,
+                        "sigma": timestep,
+                        "model_options": model_options,
+                        "input": x,
+                        # not in the original call in samplers.py:cfg_function, but made available for future hooks
+                        "empty_cond": empty_cond,
+                        "empty_cond_denoised": empty_pred,
+                    }
+                    result = f(args)
         finally:
             for pred in self.preds:
                 pred.end_sample()
+        
+        return result
 
     def forward(self, *args, **kwargs):
         return self.apply_model(*args, **kwargs)
@@ -75,6 +132,10 @@ class SamplerCustomPrediction:
                 "sigmas": ("SIGMAS",),
                 "latent_image": ("LATENT",),
                 "noise_prediction": ("PREDICTION",),
+            }, "optional": {
+                "positive_pred": ("PREDICTION",),
+                "negative_pred": ("PREDICTION",),
+                "empty_pred": ("PREDICTION",),
             }
         }
 
@@ -83,7 +144,18 @@ class SamplerCustomPrediction:
     FUNCTION = "sample"
     CATEGORY = "sampling/prediction"
 
-    def sample(self, model, add_noise, noise_seed, sampler, sigmas, latent_image, noise_prediction):
+    def sample(
+            self,
+            model,
+            add_noise,
+            noise_seed,
+            sampler,
+            sigmas,
+            latent_image,
+            noise_prediction,
+            positive_pred=None,
+            negative_pred=None,
+            empty_pred=None):
         latent_samples = latent_image["samples"]
 
         if not add_noise:
@@ -111,7 +183,10 @@ class SamplerCustomPrediction:
             noise_mask=noise_mask,
             callback=callback,
             disable_pbar=not comfy.utils.PROGRESS_BAR_ENABLED,
-            seed=noise_seed
+            seed=noise_seed,
+            positive_pred=positive_pred,
+            negative_pred=negative_pred,
+            empty_pred=empty_pred,
         )
 
         out = latent_image.copy()
@@ -135,7 +210,10 @@ def sample_pred(
     noise_mask=None,
     callback=None,
     disable_pbar=False,
-    seed=None
+    seed=None,
+    positive_pred=None,
+    negative_pred=None,
+    empty_pred=None,
 ):
     if noise_mask is not None:
         noise_mask = prepare_mask(noise_mask, noise.shape, model.load_device)
@@ -196,7 +274,7 @@ def sample_pred(
 
     # TODO: support controlnet how?
 
-    predictor_model = CustomNoisePredictor(model.model, predictor, preds, conds)
+    predictor_model = CustomNoisePredictor(model.model, predictor, preds, conds, positive_pred, negative_pred, empty_pred)
     extra_args = { "model_options": model.model_options, "seed": seed }
 
     for pred in preds:
